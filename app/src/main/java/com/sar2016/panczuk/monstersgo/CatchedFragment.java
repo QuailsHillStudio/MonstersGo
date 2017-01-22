@@ -4,9 +4,14 @@ import android.content.Context;
 import android.net.Uri;
 import android.os.Bundle;
 import android.support.v4.app.Fragment;
+import android.util.Log;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
+import android.widget.ListView;
+
+import java.text.SimpleDateFormat;
+import java.util.List;
 
 
 /**
@@ -28,6 +33,8 @@ public class CatchedFragment extends Fragment {
     private String mParam2;
 
     private OnFragmentInteractionListener mListener;
+    private List<Monster> mList;
+    ListView mListView;
 
     public CatchedFragment() {
         // Required empty public constructor
@@ -63,8 +70,8 @@ public class CatchedFragment extends Fragment {
     @Override
     public View onCreateView(LayoutInflater inflater, ViewGroup container,
                              Bundle savedInstanceState) {
-        // Inflate the layout for this fragment
-        return inflater.inflate(R.layout.fragment_catched, container, false);
+        View v = inflater.inflate(R.layout.fragment_catched, container, false);
+        return v;
     }
 
     // TODO: Rename method, update argument and hook method into UI event
@@ -104,5 +111,31 @@ public class CatchedFragment extends Fragment {
     public interface OnFragmentInteractionListener {
         // TODO: Update argument type and name
         void onFragmentInteraction(Uri uri);
+    }
+
+    @Override
+    public void onStart() {
+        super.onStart();
+        try {
+            mList = ((MainActivity)getActivity()).getCatchedList();
+            this.loadTimeline();
+        }catch(Exception e){
+            Log.e("TimelineFrag createView", e.getMessage());
+        }
+    }
+
+    public void setTimeline(List<Monster> list){
+        mList = ((MainActivity)getActivity()).getCatchedList();
+        this.loadTimeline();
+    }
+
+    private void loadTimeline(){
+        //final ArrayList<Tweet> recipeList = Tweet.getRecipesFromFile("recipes.json", this);
+
+        mListView = (ListView) getActivity().findViewById(R.id.catched);
+        String[] listItems = new String[mList.size()];
+
+        MonsterAdapter adapter = new MonsterAdapter(getActivity().getApplicationContext(), mList);
+        mListView.setAdapter(adapter);
     }
 }

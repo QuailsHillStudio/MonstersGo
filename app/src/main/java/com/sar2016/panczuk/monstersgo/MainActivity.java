@@ -1,8 +1,13 @@
 package com.sar2016.panczuk.monstersgo;
 
+import android.*;
+import android.Manifest;
 import android.content.pm.PackageManager;
 import android.content.res.Resources;
+import android.graphics.Bitmap;
+import android.graphics.BitmapFactory;
 import android.location.Location;
+import android.media.MediaPlayer;
 import android.net.Uri;
 import android.os.Bundle;
 import android.os.Handler;
@@ -25,6 +30,9 @@ import android.view.Menu;
 import android.view.MenuItem;
 import android.widget.Toast;
 
+import com.google.android.gms.appindexing.Action;
+import com.google.android.gms.appindexing.AppIndex;
+import com.google.android.gms.appindexing.Thing;
 import com.google.android.gms.common.ConnectionResult;
 import com.google.android.gms.common.api.GoogleApiClient;
 import com.google.android.gms.location.LocationListener;
@@ -35,6 +43,7 @@ import com.google.android.gms.maps.CameraUpdateFactory;
 import com.google.android.gms.maps.GoogleMap;
 import com.google.android.gms.maps.OnMapReadyCallback;
 import com.google.android.gms.maps.SupportMapFragment;
+import com.google.android.gms.maps.model.BitmapDescriptorFactory;
 import com.google.android.gms.maps.model.CameraPosition;
 import com.google.android.gms.maps.model.Circle;
 import com.google.android.gms.maps.model.CircleOptions;
@@ -50,10 +59,12 @@ import org.json.JSONObject;
 import java.io.InputStream;
 import java.text.CollationElementIterator;
 import java.text.DateFormat;
+import java.util.ArrayList;
 import java.util.Date;
+import java.util.List;
 
 public class MainActivity extends AppCompatActivity
-        implements NavigationView.OnNavigationItemSelectedListener, OnMapReadyCallback, GoogleApiClient.ConnectionCallbacks, GoogleApiClient.OnConnectionFailedListener, LocationListener, CatchedFragment.OnFragmentInteractionListener {
+        implements NavigationView.OnNavigationItemSelectedListener, OnMapReadyCallback, GoogleApiClient.ConnectionCallbacks, GoogleApiClient.OnConnectionFailedListener, LocationListener, CatchedFragment.OnFragmentInteractionListener, ProfileFragment.OnFragmentInteractionListener, GoogleMap.OnCameraMoveListener {
 
     private GoogleMap mMap;
     private GoogleApiClient mGoogleApiClient;
@@ -73,7 +84,22 @@ public class MainActivity extends AppCompatActivity
     private Handler mHandler;
     private SupportMapFragment mapFragment;
     private FloatingActionButton fab;
-    //private Fragment catchedFragment = new CatchedFragment();
+    private ArrayList<Monster> monsters = new ArrayList<>();
+    private Monster selectedMonster;
+    private MediaPlayer mp;
+    private boolean firstPos = false;
+
+    private String loggedUser = "";
+
+    private int basicZoomLevel = 17;
+    private int basicDinoWidth = 255;
+    private int basicDinoHeight = 100;
+    private int basicRangerWidth = 53;
+    private int basicRangerHeight = 75;
+
+    private int radius = 175;
+    private List<Monster> catchedList = new ArrayList<>();
+    private boolean mapReady = false;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -86,8 +112,17 @@ public class MainActivity extends AppCompatActivity
         fab.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View view) {
-                Snackbar.make(view, "Replace with your own action", Snackbar.LENGTH_LONG)
-                        .setAction("Action", null).show();
+                if(selectedMonster != null && getDistance(selectedMonster.getMarker().getPosition(), playerMarker.getPosition()) <= radius){
+                    //Removing monster !
+                    if(selectedMonster != null) {
+                        catchedList.add(selectedMonster);
+                        selectedMonster.marker.remove();
+                        selectedMonster = null;
+                    }
+                }else {
+                    Snackbar.make(view, "You must select a valid dino first !", Snackbar.LENGTH_LONG)
+                            .setAction("Action", null).show();
+                }
             }
         });
 
@@ -106,20 +141,30 @@ public class MainActivity extends AppCompatActivity
         mapFragment.getMapAsync(this);
         // Create an instance of GoogleAPIClient.
         if (mGoogleApiClient == null) {
+            // ATTENTION: This "addApi(AppIndex.API)"was auto-generated to implement the App Indexing API.
+            // See https://g.co/AppIndexing/AndroidStudio for more information.
             mGoogleApiClient = new GoogleApiClient.Builder(this)
                     .addConnectionCallbacks(this)
                     .addOnConnectionFailedListener(this)
                     .addApi(LocationServices.API)
-                    .build();
+                    .addApi(AppIndex.API).build();
         }
         mHandler = new Handler();
 
-        if(savedInstanceState == null){
+        if (savedInstanceState == null) {
             CURRENT_TAG = TAG_MAP;
             FragmentManager sfm = getSupportFragmentManager();
             sfm.beginTransaction().add(R.id.map, mapFragment).commit();
             //loadFragment();
         }
+
+        mp = MediaPlayer.create(this, R.raw.theme);
+        mp.setOnPreparedListener(new MediaPlayer.OnPreparedListener() {
+                @Override
+                public void onPrepared(MediaPlayer mp) {
+                   mp.start();
+                }
+            });
     }
 
     private void loadFragment(){
@@ -183,8 +228,11 @@ public class MainActivity extends AppCompatActivity
 
         //noinspection SimplifiableIfStatement
         if (id == R.id.action_pause_music) {
+            if(mp.isPlaying())
+                mp.pause();
             return true;
         }else if(id == R.id.action_play_music){
+            mp.start();
             return true;
         }
 
@@ -201,7 +249,6 @@ public class MainActivity extends AppCompatActivity
             sfm.beginTransaction().hide(mapFragment).commit();
         }
 
-        Toast toast = null;
         if (id == R.id.nav_catched) {
             this.CURRENT_TAG = this.TAG_CATCHED;
             this.loadFragment();
@@ -221,11 +268,7 @@ public class MainActivity extends AppCompatActivity
             fab.hide();
             this.CURRENT_TAG = this.TAG_PROFILE;
             this.loadFragment();
-            toast = Toast.makeText(getBaseContext(), "Profile", Toast.LENGTH_LONG);
         }
-
-        if(toast != null)
-            toast.show();
 
         DrawerLayout drawer = (DrawerLayout) findViewById(R.id.drawer_layout);
         drawer.closeDrawer(GravityCompat.START);
@@ -234,13 +277,18 @@ public class MainActivity extends AppCompatActivity
 
     protected void onStart() {
         mGoogleApiClient.connect();
-        fab = (FloatingActionButton)findViewById(R.id.fab);
+        fab = (FloatingActionButton) findViewById(R.id.fab);
         super.onStart();
+        // ATTENTION: This was auto-generated to implement the App Indexing API.
+        // See https://g.co/AppIndexing/AndroidStudio for more information.
+        AppIndex.AppIndexApi.start(mGoogleApiClient, getIndexApiAction());
     }
 
     protected void onStop() {
         mGoogleApiClient.disconnect();
-        super.onStop();
+        super.onStop();// ATTENTION: This was auto-generated to implement the App Indexing API.
+// See https://g.co/AppIndexing/AndroidStudio for more information.
+        AppIndex.AppIndexApi.end(mGoogleApiClient, getIndexApiAction());
     }
 
 
@@ -257,6 +305,12 @@ public class MainActivity extends AppCompatActivity
     public void onMapReady(GoogleMap googleMap) {
         mMap = googleMap;
         mMap.setBuildingsEnabled(false);
+        //mMap.getUiSettings().setScrollGesturesEnabled(false);
+        mMap.getUiSettings().setTiltGesturesEnabled(false);
+        mMap.getUiSettings().setCompassEnabled(false);
+        mMap.getUiSettings().setMapToolbarEnabled(false);
+        mMap.getUiSettings().setIndoorLevelPickerEnabled(false);
+        mMap.setOnCameraMoveListener(this);
         try {
             // Customise the styling of the base map using a JSON object defined
             // in a raw resource file.
@@ -270,25 +324,29 @@ public class MainActivity extends AppCompatActivity
         } catch (Resources.NotFoundException e) {
             Log.e("Styling", "Can't find style. Error: ", e);
         }
-        LatLng paris = new LatLng(0,0);
+
+        LatLng paris = new LatLng(48.858093 ,2.294694);
         if(mCurrentLocation != null) {
             paris = new LatLng(mCurrentLocation.getLatitude(), mCurrentLocation.getLongitude());
         }
         CameraPosition cameraPosition = new CameraPosition.Builder()
                 .target(paris)      // Sets the center of the map to Mountain View
-                .zoom(18)              // Sets the orientation of the camera to east
+                .zoom(16.5f)              // Sets the orientation of the camera to east
                 .tilt(85)                   // Sets the tilt of the camera to 30 degrees
                 .build();
         mMap.moveCamera(CameraUpdateFactory.newCameraPosition(cameraPosition));
         //circleOptions.zIndex(1);
         circle =  mMap.addCircle(new CircleOptions()
         .center(paris)
-        .radius(175)
+        .radius(this.radius)
         .fillColor(R.color.colorPrimary)
         );
-        playerMarker = mMap.addMarker(new MarkerOptions().position(paris).title("Player !"));
+        MarkerOptions playerMarkerOptions = new MarkerOptions().position(paris).title(this.getLoggedUser());
+        playerMarkerOptions.icon(BitmapDescriptorFactory.fromBitmap(resizeMapIcons("ranger",53,75)));
+        playerMarker = mMap.addMarker(playerMarkerOptions);
 
         generateMonsters();
+        mapReady = true;
     }
 
     private void generateMonsters() {
@@ -320,8 +378,23 @@ public class MainActivity extends AppCompatActivity
                     double latVal = latLngVals.getDouble(0);
                     double lngVal = latLngVals.getDouble(1);
                     LatLng latlng = new LatLng(latVal, lngVal);
-                    mMap.addMarker(new MarkerOptions().position(latlng).title(id));
 
+                    Monster m = Monster.getRandomMonster();
+                    m.setMarker(mMap.addMarker(new MarkerOptions().position(latlng).title(m.getName()).icon(BitmapDescriptorFactory.fromBitmap(resizeMapIcons(m.getImageName(),255,100)))));
+                    monsters.add(m);
+                    mMap.setOnMarkerClickListener(new GoogleMap.OnMarkerClickListener() {
+                        @Override
+                        public boolean onMarkerClick(Marker marker) {
+                            for(int i =0; i < monsters.size(); i++){
+                                if(monsters.get(i).getMarker().equals(marker)){
+                                    if(getDistance(marker.getPosition(),playerMarker.getPosition()) <= radius) {
+                                        selectedMonster = monsters.get(i);
+                                    }
+                                }
+                            }
+                            return false;
+                        }
+                    });
                 }
             } catch (final JSONException e) {
                 Log.e("JSON", "Json parsing error: " + e.getMessage());
@@ -342,7 +415,7 @@ public class MainActivity extends AppCompatActivity
 
     @Override
     public void onConnected(Bundle connectionHint) {
-        if (ActivityCompat.checkSelfPermission(this, android.Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED && ActivityCompat.checkSelfPermission(this, android.Manifest.permission.ACCESS_COARSE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
+        if (ActivityCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED && ActivityCompat.checkSelfPermission(this, Manifest.permission.ACCESS_COARSE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
             // TODO: Consider calling
             //    ActivityCompat#requestPermissions
             // here to request the missing permissions, and then overriding
@@ -354,7 +427,7 @@ public class MainActivity extends AppCompatActivity
         }
         mLocationRequest = new LocationRequest();
         mLocationRequest.setPriority(LocationRequest.PRIORITY_HIGH_ACCURACY);
-        mLocationRequest.setInterval(3);
+        mLocationRequest.setInterval(2);
          LocationServices.FusedLocationApi.requestLocationUpdates(mGoogleApiClient,mLocationRequest,this);
     }
 
@@ -370,26 +443,90 @@ public class MainActivity extends AppCompatActivity
 
     @Override
     public void onLocationChanged(Location location) {
-        if (location != null) {
+        if (location != null && this.mapReady) {
             mCurrentLocation = location;
             mLastUpdateTime = DateFormat.getTimeInstance().format(new Date());
             
             LatLng newLoc = new LatLng(location.getLatitude(), location.getLongitude());
             playerMarker.setPosition(newLoc);
             circle.setCenter(newLoc);
-            CameraPosition oldCameraPos = mMap.getCameraPosition();
-            CameraPosition cameraPosition = new CameraPosition.Builder()
-                    .target(newLoc)      // Sets the center of the map to Mountain View
-                    .zoom(oldCameraPos.zoom)                   // Sets the zoom
-                    .bearing(oldCameraPos.bearing)                // Sets the orientation of the camera to east
-                    .tilt(oldCameraPos.tilt)                   // Sets the tilt of the camera to 30 degrees
-                    .build();
-            mMap.moveCamera(CameraUpdateFactory.newCameraPosition(cameraPosition));
+            if(!firstPos) {
+                firstPos = true;
+                CameraPosition oldCameraPos = mMap.getCameraPosition();
+                CameraPosition cameraPosition = new CameraPosition.Builder()
+                        .target(newLoc)      // Sets the center of the map to Mountain View
+                        .zoom(oldCameraPos.zoom)                   // Sets the zoom
+                        .bearing(oldCameraPos.bearing)                // Sets the orientation of the camera to east
+                        .tilt(oldCameraPos.tilt)                   // Sets the tilt of the camera to 30 degrees
+                        .build();
+                mMap.moveCamera(CameraUpdateFactory.newCameraPosition(cameraPosition));
+            }
         }
     }
 
     @Override
     public void onFragmentInteraction(Uri uri) {
 
+    }
+
+    public Bitmap resizeMapIcons(String iconName, float width, float height){
+        Bitmap imageBitmap = BitmapFactory.decodeResource(getResources(),getResources().getIdentifier(iconName, "drawable", getPackageName()));
+        Bitmap resizedBitmap = Bitmap.createScaledBitmap(imageBitmap, (int)width, (int)height, false);
+        return resizedBitmap;
+    }
+
+    /**
+     * ATTENTION: This was auto-generated to implement the App Indexing API.
+     * See https://g.co/AppIndexing/AndroidStudio for more information.
+     */
+    public Action getIndexApiAction() {
+        Thing object = new Thing.Builder()
+                .setName("Main Page") // TODO: Define a title for the content shown.
+                // TODO: Make sure this auto-generated URL is correct.
+                .setUrl(Uri.parse("http://[ENTER-YOUR-URL-HERE]"))
+                .build();
+        return new Action.Builder(Action.TYPE_VIEW)
+                .setObject(object)
+                .setActionStatus(Action.STATUS_TYPE_COMPLETED)
+                .build();
+    }
+
+    @Override
+    public void onCameraMove() {
+        /*playerMarker.setIcon(BitmapDescriptorFactory.fromBitmap(resizeBasedOnZoom("ranger", basicRangerWidth, basicRangerHeight, mMap.getCameraPosition().zoom)));
+        for(int i = 0; i < monsters.size(); i ++){
+            monsters.get(i).marker.setIcon(BitmapDescriptorFactory.fromBitmap(resizeBasedOnZoom(monsters.get(i).imageName, basicDinoWidth, basicDinoHeight, mMap.getCameraPosition().zoom)));
+        }*/
+    }
+
+    public Bitmap resizeBasedOnZoom(String iconName,int basicWidth,int basicHeight, float zoom){
+        float width = basicWidth * zoom / basicZoomLevel;
+        float height = basicHeight * zoom / basicZoomLevel;
+        return this.resizeMapIcons(iconName, width, height);
+    }
+
+    public double getDistance(LatLng LatLng1, LatLng LatLng2) {
+        double distance = 0;
+        Location locationA = new Location("A");
+        locationA.setLatitude(LatLng1.latitude);
+        locationA.setLongitude(LatLng1.longitude);
+        Location locationB = new Location("B");
+        locationB.setLatitude(LatLng2.latitude);
+        locationB.setLongitude(LatLng2.longitude);
+        distance = locationA.distanceTo(locationB);
+
+        return distance;
+    }
+
+    public List<Monster> getCatchedList() {
+        return catchedList;
+    }
+
+    public String getLoggedUser() {
+        return loggedUser;
+    }
+
+    public void setLoggedUser(String loggedUser) {
+        this.loggedUser = loggedUser;
     }
 }
