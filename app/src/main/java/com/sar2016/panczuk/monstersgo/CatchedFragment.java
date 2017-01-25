@@ -74,13 +74,6 @@ public class CatchedFragment extends Fragment {
         return v;
     }
 
-    // TODO: Rename method, update argument and hook method into UI event
-    public void onButtonPressed(Uri uri) {
-        if (mListener != null) {
-            mListener.onFragmentInteraction(uri);
-        }
-    }
-
     @Override
     public void onAttach(Context context) {
         super.onAttach(context);
@@ -124,18 +117,17 @@ public class CatchedFragment extends Fragment {
         }
     }
 
-    public void setTimeline(List<Monster> list){
-        mList = ((MainActivity)getActivity()).getCatchedList();
-        this.loadTimeline();
-    }
+    public void loadTimeline(){
+        MainActivity activity = (MainActivity) getActivity();
 
-    private void loadTimeline(){
-        //final ArrayList<Tweet> recipeList = Tweet.getRecipesFromFile("recipes.json", this);
+        mListView = (ListView) activity.findViewById(R.id.catched);
+        MonsterDao dao = new MonsterDao(activity);
 
-        mListView = (ListView) getActivity().findViewById(R.id.catched);
-        String[] listItems = new String[mList.size()];
+        dao.open();
+            List<Monster> monsters = dao.getAllFromUsers(activity.getLoggedUser());
+        dao.close();
 
-        MonsterAdapter adapter = new MonsterAdapter(getActivity().getApplicationContext(), mList);
+        MonsterAdapter adapter = new MonsterAdapter(getActivity().getApplicationContext(), monsters);
         mListView.setAdapter(adapter);
     }
 }

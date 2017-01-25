@@ -46,19 +46,21 @@ public class MonsterAdapter extends BaseAdapter {
         // Get view for row item
         View rowView = mInflater.inflate(R.layout.monster, parent, false);
 
-        TextView tweetTextView =
+        TextView monsterTextView =
                 (TextView) rowView.findViewById(R.id.monster_name);
+        TextView monsterLevelView =
+                (TextView) rowView.findViewById(R.id.monster_level);
         ImageView thumbnailImageView =
                 (ImageView) rowView.findViewById(R.id.monster_image);
         //TextView userTextView =
           //      (TextView) rowView.findViewById(R.id.tweet_user);
 
 
-        Monster tweet = (Monster) getItem(position);
+        Monster monster = (Monster) getItem(position);
 
-        thumbnailImageView.setImageBitmap(BitmapFactory.decodeResource(mContext.getResources(),mContext.getResources().getIdentifier(tweet.getImageName(), "drawable", mContext.getPackageName())));
-        tweetTextView.setText(tweet.getName());
-        //userTextView.setText(tweet.getImageName());
+        thumbnailImageView.setImageBitmap(BitmapFactory.decodeResource(mContext.getResources(),mContext.getResources().getIdentifier(monster.getImageName(), "drawable", mContext.getPackageName())));
+        monsterTextView.setText(monster.getName());
+        monsterLevelView.setText("(Lvl : "+monster.getLevel()+")");
 
         return rowView;
     }

@@ -1,4 +1,4 @@
-<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+<RelativeLayout xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
@@ -6,8 +6,69 @@
 
     <!-- TODO: Update blank fragment layout -->
     <TextView
+        android:id="@+id/ranger_name"
         android:layout_width="match_parent"
-        android:layout_height="match_parent"
+        android:layout_height="wrap_content"
+        android:textAlignment="center"
+        android:layout_marginTop="@dimen/activity_vertical_margin"
+        android:textSize="35dp"
         android:text="@string/hello_blank_fragment" />
 
-</FrameLayout>
+    <ImageView
+        android:id="@+id/player_image"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:layout_marginStart="4dp"
+        android:layout_marginTop="70dp"
+        android:scaleType="centerInside"
+        android:src="@drawable/ranger"
+        />
+
+    <RelativeLayout
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_centerHorizontal="true"
+        android:layout_gravity="bottom">
+        <ImageView
+            android:id="@+id/ranger_image_select"
+            android:layout_width="70dp"
+            android:layout_height="70dp"
+            android:scaleType="centerInside"
+            android:src="@drawable/ranger"
+            android:layout_alignParentBottom="true"
+            android:layout_alignParentStart="true" />
+
+        <ImageView
+            android:id="@+id/rangera_image_select"
+            android:layout_width="70dp"
+            android:layout_height="70dp"
+            android:scaleType="centerInside"
+            android:src="@drawable/rangera"
+            android:layout_alignParentBottom="true"
+            android:layout_toEndOf="@+id/ranger_image_select" />
+        <ImageView
+            android:id="@+id/ninja_image_select"
+            android:layout_width="70dp"
+            android:layout_height="70dp"
+            android:scaleType="centerInside"
+            android:src="@drawable/ninja"
+            android:layout_alignParentBottom="true"
+            android:layout_toEndOf="@+id/rangera_image_select" />
+        <ImageView
+            android:id="@+id/ninjette_image_select"
+            android:layout_width="70dp"
+            android:layout_height="70dp"
+            android:scaleType="centerInside"
+            android:src="@drawable/ninjette"
+            android:layout_alignParentBottom="true"
+            android:layout_toEndOf="@+id/ninja_image_select" />
+        <ImageView
+            android:id="@+id/santa_image_select"
+            android:layout_width="70dp"
+            android:layout_height="70dp"
+            android:scaleType="centerInside"
+            android:src="@drawable/santa"
+            android:layout_alignParentBottom="true"
+            android:layout_toEndOf="@+id/ninjette_image_select" />
+    </RelativeLayout>
+</RelativeLayout>

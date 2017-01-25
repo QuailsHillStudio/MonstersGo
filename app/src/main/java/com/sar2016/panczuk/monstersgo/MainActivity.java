@@ -2,10 +2,14 @@ package com.sar2016.panczuk.monstersgo;
 
 import android.*;
 import android.Manifest;
+import android.content.Context;
+import android.content.Intent;
 import android.content.pm.PackageManager;
 import android.content.res.Resources;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
+import android.graphics.drawable.BitmapDrawable;
+import android.graphics.drawable.Drawable;
 import android.location.Location;
 import android.media.MediaPlayer;
 import android.net.Uri;
@@ -43,6 +47,7 @@ import com.google.android.gms.maps.CameraUpdateFactory;
 import com.google.android.gms.maps.GoogleMap;
 import com.google.android.gms.maps.OnMapReadyCallback;
 import com.google.android.gms.maps.SupportMapFragment;
+import com.google.android.gms.maps.model.BitmapDescriptor;
 import com.google.android.gms.maps.model.BitmapDescriptorFactory;
 import com.google.android.gms.maps.model.CameraPosition;
 import com.google.android.gms.maps.model.Circle;
@@ -64,8 +69,9 @@ import java.util.Date;
 import java.util.List;
 
 public class MainActivity extends AppCompatActivity
-        implements NavigationView.OnNavigationItemSelectedListener, OnMapReadyCallback, GoogleApiClient.ConnectionCallbacks, GoogleApiClient.OnConnectionFailedListener, LocationListener, CatchedFragment.OnFragmentInteractionListener, ProfileFragment.OnFragmentInteractionListener, GoogleMap.OnCameraMoveListener {
+        implements NavigationView.OnNavigationItemSelectedListener, OnMapReadyCallback, GoogleApiClient.ConnectionCallbacks, GoogleApiClient.OnConnectionFailedListener, LocationListener, CatchedFragment.OnFragmentInteractionListener, ProfileFragment.OnFragmentInteractionListener, CatchingFragment.OnFragmentInteractionListener, GoogleMap.OnCameraMoveListener {
 
+    protected static Context context;
     private GoogleMap mMap;
     private GoogleApiClient mGoogleApiClient;
     private Location mLastLocation;
@@ -78,6 +84,7 @@ public class MainActivity extends AppCompatActivity
 
     private static final String TAG_MAP = "map";
     private static final String TAG_CATCHED = "catched";
+    private static final String TAG_CATCHING = "catching";
     private static final String TAG_PROFILE = "profile";
     public static String CURRENT_TAG = TAG_MAP;
 
@@ -100,11 +107,14 @@ public class MainActivity extends AppCompatActivity
     private int radius = 175;
     private List<Monster> catchedList = new ArrayList<>();
     private boolean mapReady = false;
+    private Drawable loggedUserImage;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
+        context = this;
         setContentView(R.layout.activity_main);
+
         Toolbar toolbar = (Toolbar) findViewById(R.id.toolbar);
         setSupportActionBar(toolbar);
 
@@ -116,8 +126,9 @@ public class MainActivity extends AppCompatActivity
                     //Removing monster !
                     if(selectedMonster != null) {
                         catchedList.add(selectedMonster);
-                        selectedMonster.marker.remove();
-                        selectedMonster = null;
+                        selectedMonster.setUser(loggedUser);
+                        CURRENT_TAG = TAG_CATCHING;
+                        loadFragment();
                     }
                 }else {
                     Snackbar.make(view, "You must select a valid dino first !", Snackbar.LENGTH_LONG)
@@ -135,14 +146,15 @@ public class MainActivity extends AppCompatActivity
         NavigationView navigationView = (NavigationView) findViewById(R.id.nav_view);
         navigationView.setNavigationItemSelectedListener(this);
 
+        Intent intent = getIntent();
+        loggedUser = intent.getStringExtra(LoginActivity.EXTRA_MESSAGE);
+
+
         mapFragment = SupportMapFragment.newInstance();
         /*SupportMapFragment mapFragment = (SupportMapFragment) getSupportFragmentManager()
                 .findFragmentById(R.id.map);*/
         mapFragment.getMapAsync(this);
-        // Create an instance of GoogleAPIClient.
         if (mGoogleApiClient == null) {
-            // ATTENTION: This "addApi(AppIndex.API)"was auto-generated to implement the App Indexing API.
-            // See https://g.co/AppIndexing/AndroidStudio for more information.
             mGoogleApiClient = new GoogleApiClient.Builder(this)
                     .addConnectionCallbacks(this)
                     .addOnConnectionFailedListener(this)
@@ -155,7 +167,6 @@ public class MainActivity extends AppCompatActivity
             CURRENT_TAG = TAG_MAP;
             FragmentManager sfm = getSupportFragmentManager();
             sfm.beginTransaction().add(R.id.map, mapFragment).commit();
-            //loadFragment();
         }
 
         mp = MediaPlayer.create(this, R.raw.theme);
@@ -168,11 +179,14 @@ public class MainActivity extends AppCompatActivity
     }
 
     private void loadFragment(){
+        FragmentManager sfm = getSupportFragmentManager();
 
-        if(getSupportFragmentManager().findFragmentByTag(CURRENT_TAG) != null){
-            return;
+        if(mapFragment.isAdded()){
+            sfm.beginTransaction().hide(mapFragment).commit();
         }
+        fab.hide();
 
+        Log.d("Loading Frag", CURRENT_TAG);
         Runnable mPendingRunnable = new Runnable(){
 
             @Override
@@ -191,7 +205,10 @@ public class MainActivity extends AppCompatActivity
     }
 
     private Fragment getCurrentFragment(){
-        if(CURRENT_TAG == TAG_CATCHED) {
+        if(CURRENT_TAG == TAG_CATCHING) {
+            CatchingFragment catchingFragment = new CatchingFragment();
+            return catchingFragment;
+        }else if(CURRENT_TAG == TAG_CATCHED) {
             CatchedFragment ctachedFragment = new CatchedFragment();
             return ctachedFragment;
         }else if(CURRENT_TAG == TAG_PROFILE) {
@@ -245,27 +262,20 @@ public class MainActivity extends AppCompatActivity
         int id = item.getItemId();
         FragmentManager sfm = getSupportFragmentManager();
 
-        if(mapFragment.isAdded()){
-            sfm.beginTransaction().hide(mapFragment).commit();
-        }
-
         if (id == R.id.nav_catched) {
             this.CURRENT_TAG = this.TAG_CATCHED;
             this.loadFragment();
-            fab.hide();
         } else if (id == R.id.nav_map) {
             this.CURRENT_TAG = this.TAG_MAP;
 
             fab.show();
 
             if(!mapFragment.isAdded())
-                sfm.beginTransaction().add(R.id.map, mapFragment).commit();
+                sfm.beginTransaction().setCustomAnimations(android.R.anim.fade_in, android.R.anim.fade_out).add(R.id.map, mapFragment).commit();
             else
-                sfm.beginTransaction().show(mapFragment).commit();
+                sfm.beginTransaction().setCustomAnimations(android.R.anim.fade_in, android.R.anim.fade_out).show(mapFragment).commit();
 
         } else if (id == R.id.nav_profile) {
-            this.loadFragment();
-            fab.hide();
             this.CURRENT_TAG = this.TAG_PROFILE;
             this.loadFragment();
         }
@@ -279,28 +289,17 @@ public class MainActivity extends AppCompatActivity
         mGoogleApiClient.connect();
         fab = (FloatingActionButton) findViewById(R.id.fab);
         super.onStart();
-        // ATTENTION: This was auto-generated to implement the App Indexing API.
-        // See https://g.co/AppIndexing/AndroidStudio for more information.
+
         AppIndex.AppIndexApi.start(mGoogleApiClient, getIndexApiAction());
     }
 
     protected void onStop() {
         mGoogleApiClient.disconnect();
-        super.onStop();// ATTENTION: This was auto-generated to implement the App Indexing API.
-// See https://g.co/AppIndexing/AndroidStudio for more information.
+        super.onStop();
         AppIndex.AppIndexApi.end(mGoogleApiClient, getIndexApiAction());
     }
 
 
-    /**
-     * Manipulates the map once available.
-     * This callback is triggered when the map is ready to be used.
-     * This is where we can add markers or lines, add listeners or move the camera. In this case,
-     * we just add a marker near Sydney, Australia.
-     * If Google Play services is not installed on the device, the user will be prompted to install
-     * it inside the SupportMapFragment. This method will only be triggered once the user has
-     * installed Google Play services and returned to the app.
-     */
     @Override
     public void onMapReady(GoogleMap googleMap) {
         mMap = googleMap;
@@ -341,8 +340,11 @@ public class MainActivity extends AppCompatActivity
         .radius(this.radius)
         .fillColor(R.color.colorPrimary)
         );
+        this.setLoggedUserImage(getResources().getDrawable(R.drawable.ranger));
+
         MarkerOptions playerMarkerOptions = new MarkerOptions().position(paris).title(this.getLoggedUser());
-        playerMarkerOptions.icon(BitmapDescriptorFactory.fromBitmap(resizeMapIcons("ranger",53,75)));
+        BitmapDrawable drawable = (BitmapDrawable)this.getLoggedUserImage();
+        playerMarkerOptions.icon(BitmapDescriptorFactory.fromBitmap(resizeMapIcons(((BitmapDrawable) this.getLoggedUserImage()).getBitmap(), 53, 75)));
         playerMarker = mMap.addMarker(playerMarkerOptions);
 
         generateMonsters();
@@ -411,6 +413,7 @@ public class MainActivity extends AppCompatActivity
 
             }
         }
+        startService(new Intent(this, MoveDinosService.class));
     }
 
     @Override
@@ -475,6 +478,11 @@ public class MainActivity extends AppCompatActivity
         return resizedBitmap;
     }
 
+    public Bitmap resizeMapIcons(Bitmap bitmap, float width, float height){
+        Bitmap resizedBitmap = Bitmap.createScaledBitmap(bitmap, (int)width, (int)height, false);
+        return resizedBitmap;
+    }
+
     /**
      * ATTENTION: This was auto-generated to implement the App Indexing API.
      * See https://g.co/AppIndexing/AndroidStudio for more information.
@@ -528,5 +536,56 @@ public class MainActivity extends AppCompatActivity
 
     public void setLoggedUser(String loggedUser) {
         this.loggedUser = loggedUser;
+    }
+
+    private void insertIntoDB(Monster selectedMonster) {
+        MonsterDao dao = new MonsterDao(this);
+        dao.open();
+        dao.insertMonster(selectedMonster);
+        dao.close();
+    }
+
+    public ArrayList<Monster> getMonsters() {
+        return monsters;
+    }
+
+    public boolean isMapReady() {
+        return mapReady;
+    }
+
+    public void setLoggedUserImage(Drawable loggedUserImage) {
+        this.loggedUserImage = loggedUserImage;
+        if(this.playerMarker != null){
+            BitmapDrawable drawable = (BitmapDrawable)loggedUserImage;
+            playerMarker.setIcon(BitmapDescriptorFactory.fromBitmap(resizeMapIcons(drawable.getBitmap(), 53, 75)));
+        }
+    }
+
+    public Drawable getLoggedUserImage() {
+        return loggedUserImage;
+    }
+
+    public Monster getSelectedMonster() {
+        return selectedMonster;
+    }
+
+    public void monsterGotCatched(){
+        insertIntoDB(selectedMonster);
+        selectedMonster.marker.remove();
+        selectedMonster = null;
+
+        this.CURRENT_TAG = TAG_MAP;
+
+        fab.show();
+
+        if(!mapFragment.isAdded())
+            getSupportFragmentManager().beginTransaction().setCustomAnimations(android.R.anim.fade_in, android.R.anim.fade_out).add(R.id.map, mapFragment).commit();
+        else
+            getSupportFragmentManager().beginTransaction().setCustomAnimations(android.R.anim.fade_in, android.R.anim.fade_out).show(mapFragment).commit();
+
+    }
+
+    public void monsterCatchingFailed(){
+
     }
 }

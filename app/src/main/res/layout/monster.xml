@@ -1,14 +1,16 @@
 <?xml version="1.0" encoding="utf-8"?>
-<RelativeLayout xmlns:android="http://schemas.android.com/apk/res/android"
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
-    android:layout_height="match_parent">
+    android:layout_height="match_parent"
+    android:gravity="center">
 
     <RelativeLayout
         android:id="@+id/recipe_list_text_layout"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:layout_centerVertical="true">
+
 
 
         <ImageView
@@ -32,9 +34,15 @@
         android:layout_height="wrap_content"
         android:maxLines="1"
         android:textColor="#000000"
-        android:textSize="22sp"
-        tools:text="Detail"
-        android:layout_centerVertical="true"
-        android:layout_alignParentEnd="true"
-        android:layout_marginEnd="45dp" />
-</RelativeLayout>
+        android:textSize="20dp"
+        android:layout_marginEnd="10dp"
+        tools:text="Detail"/>
+    <TextView
+        android:id="@+id/monster_level"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:maxLines="1"
+        android:textColor="#000000"
+        android:textSize="15dp"
+        tools:text="Level" />
+</LinearLayout>

@@ -10,15 +10,14 @@
             android:id="@+id/nav_map"
             android:icon="@drawable/ic_menu_gallery"
             android:title="@string/action_map" />
+
+        <item android:title="Settings">
+            <menu>
+                <item
+                    android:id="@+id/nav_profile"
+                    android:icon="@drawable/ic_menu_manage"
+                    android:title="@string/action_profile" />
+            </menu>
+        </item>
     </group>
-
-    <item android:title="Settings">
-        <menu>
-            <item
-                android:id="@+id/nav_profile"
-                android:icon="@drawable/ic_menu_manage"
-                android:title="@string/action_profile" />
-        </menu>
-    </item>
-
 </menu>
